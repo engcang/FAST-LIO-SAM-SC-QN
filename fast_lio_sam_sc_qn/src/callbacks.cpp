@@ -1,7 +1,7 @@
 #include "main.h"
 
 
-void FastLioSamQnClass::odomPcdCallback(const nav_msgs::OdometryConstPtr &odom_msg, const sensor_msgs::PointCloud2ConstPtr &pcd_msg)
+void FastLioSamScQnClass::odomPcdCallback(const nav_msgs::OdometryConstPtr &odom_msg, const sensor_msgs::PointCloud2ConstPtr &pcd_msg)
 {
   Eigen::Matrix4d last_odom_tf_;
   last_odom_tf_ = m_current_frame.pose_eig; //to calculate delta
@@ -28,6 +28,8 @@ void FastLioSamQnClass::odomPcdCallback(const nav_msgs::OdometryConstPtr &odom_m
       transform_.setRotation(tf::Quaternion(current_pose_stamped_.pose.orientation.x, current_pose_stamped_.pose.orientation.y, current_pose_stamped_.pose.orientation.z, current_pose_stamped_.pose.orientation.w));
       m_broadcaster.sendTransform(tf::StampedTransform(transform_, ros::Time::now(), m_map_frame, "robot"));
     }
+    //scancontext
+    m_sc_manager.makeAndSaveScancontextAndKeys( m_current_frame.pcd );
     m_current_keyframe_idx++;
     m_init = true;
   }
@@ -69,6 +71,8 @@ void FastLioSamQnClass::odomPcdCallback(const nav_msgs::OdometryConstPtr &odom_m
         m_init_esti.insert(m_current_keyframe_idx, pose_to_);
       }
       m_current_keyframe_idx++;
+      // 2-4. if so, Gen SconContext
+      m_sc_manager.makeAndSaveScancontextAndKeys( m_current_frame.pcd );
 
       //// 3. vis
       high_resolution_clock::time_point t3_ = high_resolution_clock::now();
@@ -124,7 +128,7 @@ void FastLioSamQnClass::odomPcdCallback(const nav_msgs::OdometryConstPtr &odom_m
   return;
 }
 
-void FastLioSamQnClass::loopTimerFunc(const ros::TimerEvent& event)
+void FastLioSamScQnClass::loopTimerFunc(const ros::TimerEvent& event)
 {
   if (!m_init) return;
 
@@ -136,19 +140,21 @@ void FastLioSamQnClass::loopTimerFunc(const ros::TimerEvent& event)
     std::lock_guard<std::mutex> lock(m_keyframes_mutex);
     if (!m_not_processed_keyframe.processed)
     {
-      not_proc_key_copy_ = m_not_processed_keyframe;
       m_not_processed_keyframe.processed = true;
       keyframes_copy_ = m_keyframes;
     }
   }
-  if (not_proc_key_copy_.idx == 0 || not_proc_key_copy_.processed || keyframes_copy_.empty()) return; //already processed
+  if (keyframes_copy_.empty()) return; //already processed
 
   //// 2. detect loop and add to graph
   high_resolution_clock::time_point t2_ = high_resolution_clock::now();
-  bool if_loop_occured_ = false;
-  // from not_proc_key_copy_ keyframe to old keyframes in threshold radius, get the closest keyframe
-  int closest_keyframe_idx_ = getClosestKeyframeIdx(not_proc_key_copy_, keyframes_copy_);
-  if (closest_keyframe_idx_ >= 0) //if exists
+  // from ScanContext, get the loop candidate
+  std::pair<int, float> sc_detected_ = m_sc_manager.detectLoopClosureID(); // int: nearest node index, float: relative yaw
+  int closest_keyframe_idx_ = sc_detected_.first;
+  
+  if (closest_keyframe_idx_ >= 0 //if exists
+      && (keyframes_copy_[closest_keyframe_idx_].pose_corrected_eig.block<3, 1>(0, 3) //if close enough
+          - keyframes_copy_.back().pose_corrected_eig.block<3, 1>(0, 3)).norm() < m_max_correspondence_distance) 
   {
     // Quatro + NANO-GICP to check loop (from front_keyframe to closest keyframe's neighbor)
     bool converged_well_ = false;
@@ -156,42 +162,38 @@ void FastLioSamQnClass::loopTimerFunc(const ros::TimerEvent& event)
     Eigen::Matrix4d pose_between_eig_ = Eigen::Matrix4d::Identity();
     if (m_enable_quatro) 
     {
-      pose_between_eig_ = coarseToFineKeyToKey(not_proc_key_copy_, closest_keyframe_idx_, keyframes_copy_, converged_well_, score_);
+      pose_between_eig_ = coarseToFineKeyToKey(closest_keyframe_idx_, keyframes_copy_, converged_well_, score_);
     }
     else
     {
-      pose_between_eig_ = icpKeyToSubkeys(not_proc_key_copy_, closest_keyframe_idx_, keyframes_copy_, converged_well_, score_);
+      pose_between_eig_ = icpKeyToSubkeys(closest_keyframe_idx_, keyframes_copy_, converged_well_, score_);
     }
 
     ROS_WARN("!!!!!!!!!!!!!!!!!!!!!! score: %.3f", score_);
     if(converged_well_) // add loop factor
     {
-      gtsam::Pose3 pose_from_ = poseEigToGtsamPose(pose_between_eig_ * not_proc_key_copy_.pose_corrected_eig); //IMPORTANT: take care of the order
+      gtsam::Pose3 pose_from_ = poseEigToGtsamPose(pose_between_eig_ * keyframes_copy_.back().pose_corrected_eig); //IMPORTANT: take care of the order
       gtsam::Pose3 pose_to_ = poseEigToGtsamPose(keyframes_copy_[closest_keyframe_idx_].pose_corrected_eig);
       gtsam::noiseModel::Diagonal::shared_ptr loop_noise_ = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << score_, score_, score_, score_, score_, score_).finished());
       {
         std::lock_guard<std::mutex> lock(m_graph_mutex);
-        m_gtsam_graph.add(gtsam::BetweenFactor<gtsam::Pose3>(not_proc_key_copy_.idx, closest_keyframe_idx_, pose_from_.between(pose_to_), loop_noise_));
+        m_gtsam_graph.add(gtsam::BetweenFactor<gtsam::Pose3>(keyframes_copy_.back().idx, closest_keyframe_idx_, pose_from_.between(pose_to_), loop_noise_));
       }
-      m_loop_idx_pairs.push_back({not_proc_key_copy_.idx, closest_keyframe_idx_}); //for vis
-      if_loop_occured_ = true;
+      m_loop_idx_pairs.push_back({keyframes_copy_.back().idx, closest_keyframe_idx_}); //for vis
+
+      m_loop_added_flag_vis = true;
+      m_loop_added_flag = true;
     }
   }
+
   high_resolution_clock::time_point t3_ = high_resolution_clock::now();
-
-  if (if_loop_occured_)
-  {
-    m_loop_added_flag_vis = true;
-    m_loop_added_flag = true;
-  }
-
   ROS_INFO("copy: %.1f, loop: %.1f", 
           duration_cast<microseconds>(t2_-t1_).count()/1e3, duration_cast<microseconds>(t3_-t2_).count()/1e3);
 
   return;
 }
 
-void FastLioSamQnClass::visTimerFunc(const ros::TimerEvent& event)
+void FastLioSamScQnClass::visTimerFunc(const ros::TimerEvent& event)
 {
   if (!m_init) return;
 

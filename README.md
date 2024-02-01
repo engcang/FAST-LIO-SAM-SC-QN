@@ -20,6 +20,8 @@
 + FAST_LIO_SAM_QN sets loop candidate pair as (current keyframe, the closest and old enough keyframe)
 + FAST_LIO_SAM_SC_QN gets loop candidate pair from ScanContext
 
+<br>
+
 ## Dependencies
 + `C++` >= 17, `OpenMP` >= 4.5, `CMake` >= 3.10.0, `Eigen` >= 3.2, `Boost` >= 1.54
 + `ROS`
@@ -44,6 +46,8 @@
     ```shell
     sudo apt install libtbb-dev
     ```
+
+<br>
 
 ## How to build and use
 + Get the code and then build the main code.

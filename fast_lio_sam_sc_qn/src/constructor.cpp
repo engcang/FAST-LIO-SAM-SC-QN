@@ -19,7 +19,7 @@ PosePcd::PosePcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointClou
   idx = idx_in;
 }
 
-FastLioSamQnClass::FastLioSamQnClass(const ros::NodeHandle& n_private) : m_nh(n_private)
+FastLioSamScQnClass::FastLioSamScQnClass(const ros::NodeHandle& n_private) : m_nh(n_private)
 {
   ////// ROS params
   // temp vars, only used in constructor
@@ -28,6 +28,7 @@ FastLioSamQnClass::FastLioSamQnClass(const ros::NodeHandle& n_private) : m_nh(n_
   int nano_thread_number_, nano_correspondences_number_, nano_max_iter_;
   int nano_ransac_max_iter_, quatro_max_iter_, quatro_max_corres_;
   double transformation_epsilon_, euclidean_fitness_epsilon_, ransac_outlier_rejection_threshold_;
+  double max_correspondence_distance_;
   double fpfh_normal_radius_, fpfh_radius_, noise_bound_, rot_gnc_factor_, rot_cost_diff_thr_;
   double quatro_distance_threshold_;
   bool estimat_scale_, use_optimized_matching_;
@@ -40,13 +41,11 @@ FastLioSamQnClass::FastLioSamQnClass(const ros::NodeHandle& n_private) : m_nh(n_
   /* keyframe */
   m_nh.param<double>("/keyframe/keyframe_threshold", m_keyframe_thr, 1.0);
   m_nh.param<int>("/keyframe/subkeyframes_number", m_sub_key_num, 5);
-  /* loop */
-  m_nh.param<double>("/loop/loop_detection_radius", m_loop_det_radi, 15.0);
-  m_nh.param<double>("/loop/loop_detection_timediff_threshold", m_loop_det_tdiff_thr, 10.0);
   /* nano */
   m_nh.param<int>("/nano_gicp/thread_number", nano_thread_number_, 0);
   m_nh.param<double>("/nano_gicp/icp_score_threshold", m_icp_score_thr, 10.0);
   m_nh.param<int>("/nano_gicp/correspondences_number", nano_correspondences_number_, 15);
+  m_nh.param<double>("/nano_gicp/max_correspondence_distance", m_max_correspondence_distance, 35.0);
   m_nh.param<int>("/nano_gicp/max_iter", nano_max_iter_, 32);
   m_nh.param<double>("/nano_gicp/transformation_epsilon", transformation_epsilon_, 0.01);
   m_nh.param<double>("/nano_gicp/euclidean_fitness_epsilon", euclidean_fitness_epsilon_, 0.01);
@@ -76,7 +75,7 @@ FastLioSamQnClass::FastLioSamQnClass(const ros::NodeHandle& n_private) : m_nh(n_
   ////// loop init
   m_voxelgrid.setLeafSize(quatro_gicp_vox_res_, quatro_gicp_vox_res_, quatro_gicp_vox_res_);
   ////// nano_gicp init
-  m_nano_gicp.setMaxCorrespondenceDistance(m_loop_det_radi*2.0);
+  m_nano_gicp.setMaxCorrespondenceDistance(m_max_correspondence_distance);
   m_nano_gicp.setNumThreads(nano_thread_number_);
   m_nano_gicp.setCorrespondenceRandomness(nano_correspondences_number_);
   m_nano_gicp.setMaximumIterations(nano_max_iter_);
@@ -91,7 +90,7 @@ FastLioSamQnClass::FastLioSamQnClass(const ros::NodeHandle& n_private) : m_nh(n_
   ////// ROS things
   m_odom_path.header.frame_id = m_map_frame;
   m_corrected_path.header.frame_id = m_map_frame;
-  m_package_path = ros::package::getPath("fast_lio_sam_qn");
+  m_package_path = ros::package::getPath("fast_lio_sam_sc_qn");
   // publishers
   m_odom_pub = m_nh.advertise<sensor_msgs::PointCloud2>("/ori_odom", 10, true);
   m_path_pub = m_nh.advertise<nav_msgs::Path>("/ori_path", 10, true);
@@ -109,15 +108,15 @@ FastLioSamQnClass::FastLioSamQnClass(const ros::NodeHandle& n_private) : m_nh(n_
   m_sub_odom = std::make_shared<message_filters::Subscriber<nav_msgs::Odometry>>(m_nh, "/Odometry", 10);
   m_sub_pcd = std::make_shared<message_filters::Subscriber<sensor_msgs::PointCloud2>>(m_nh, "/cloud_registered", 10);
   m_sub_odom_pcd_sync = std::make_shared<message_filters::Synchronizer<odom_pcd_sync_pol>>(odom_pcd_sync_pol(10), *m_sub_odom, *m_sub_pcd);
-  m_sub_odom_pcd_sync->registerCallback(boost::bind(&FastLioSamQnClass::odomPcdCallback, this, _1, _2));
+  m_sub_odom_pcd_sync->registerCallback(boost::bind(&FastLioSamScQnClass::odomPcdCallback, this, _1, _2));
   // Timers at the end
-  m_loop_timer = m_nh.createTimer(ros::Duration(1/loop_update_hz_), &FastLioSamQnClass::loopTimerFunc, this);
-  m_vis_timer = m_nh.createTimer(ros::Duration(1/vis_hz_), &FastLioSamQnClass::visTimerFunc, this);
+  m_loop_timer = m_nh.createTimer(ros::Duration(1/loop_update_hz_), &FastLioSamScQnClass::loopTimerFunc, this);
+  m_vis_timer = m_nh.createTimer(ros::Duration(1/vis_hz_), &FastLioSamScQnClass::visTimerFunc, this);
   
   ROS_WARN("Main class, starting node...");
 }
 
-FastLioSamQnClass::~FastLioSamQnClass()
+FastLioSamScQnClass::~FastLioSamScQnClass()
 {
   // save map
   if (m_save_map_bag)

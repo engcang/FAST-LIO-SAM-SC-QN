@@ -1,5 +1,5 @@
-#ifndef FAST_LIO_SAM_QN_MAIN_H
-#define FAST_LIO_SAM_QN_MAIN_H
+#ifndef FAST_LIO_SAM_SC_QN_MAIN_H
+#define FAST_LIO_SAM_SC_QN_MAIN_H
 
 ///// coded headers
 #include "utilities.h"
@@ -9,7 +9,6 @@
 #include <cmath>
 #include <chrono> //time check
 #include <vector>
-#include <deque>
 #include <mutex>
 #include <string>
 #include <utility> // pair, make_pair
@@ -43,6 +42,8 @@
 #include <nano_gicp/nano_gicp.hpp>
 ///// Quatro
 #include <quatro/quatro_module.h>
+///// Scancontext
+#include "Scancontext.h"
 ///// Eigen
 #include <Eigen/Eigen> // whole Eigen library: Sparse(Linearalgebra) + Dense(Core+Geometry+LU+Cholesky+SVD+QR+Eigenvalues)
 ///// GTSAM
@@ -74,7 +75,7 @@ struct PosePcd
   PosePcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCloud2 &pcd_in, const int &idx_in);
 };
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-class FastLioSamQnClass
+class FastLioSamScQnClass
 {
   private:
     ///// basic params
@@ -99,8 +100,9 @@ class FastLioSamQnClass
     pcl::VoxelGrid<PointType> m_voxelgrid, m_voxelgrid_vis;
     nano_gicp::NanoGICP<PointType, PointType> m_nano_gicp;
     shared_ptr<quatro<PointType>> m_quatro_handler = nullptr;
+    SCManager m_sc_manager;
     bool m_enable_quatro = false;
-    double m_icp_score_thr, m_loop_det_radi, m_loop_det_tdiff_thr;
+    double m_icp_score_thr, m_max_correspondence_distance;
     int m_sub_key_num;
     std::vector<pair<int, int>> m_loop_idx_pairs; //for vis
     bool m_loop_added_flag = false; //for opt
@@ -126,22 +128,15 @@ class FastLioSamQnClass
 
     ///// functions
   public:
-    FastLioSamQnClass(const ros::NodeHandle& n_private);
-    ~FastLioSamQnClass();
+    FastLioSamScQnClass(const ros::NodeHandle& n_private);
+    ~FastLioSamScQnClass();
   private:
     //methods
     void updateVisVars(const PosePcd &pose_pcd_in);
     void voxelizePcd(pcl::VoxelGrid<PointType> &voxelgrid, pcl::PointCloud<PointType> &pcd_in);
     bool checkIfKeyframe(const PosePcd &pose_pcd_in, const PosePcd &latest_pose_pcd);
-    int getClosestKeyframeIdx(const PosePcd &front_keyframe, const std::vector<PosePcd> &keyframes);
-    Eigen::Matrix4d icpKeyToSubkeys(const PosePcd &front_keyframe, const int &closest_idx, 
-                                    const std::vector<PosePcd> &keyframes, bool &if_converged, double &score);
-    Eigen::Matrix4d coarseToFineKeyToKey(const PosePcd &front_keyframe, const int &closest_idx,
-                                         const std::vector<PosePcd> &keyframes, bool &if_converged, double &score);
-    Eigen::Matrix4d icpSubkeysToSubkeys(const std::deque<PosePcd> &front_keyframes, const int& not_processed_idx,
-                                        const int &closest_idx, const std::vector<PosePcd> &keyframes, bool &if_converged, double &score);
-    Eigen::Matrix4d coarseToFineSubkeysToSubkeys(const std::deque<PosePcd> &front_keyframes, const int& not_processed_idx,
-                                                 const int &closest_idx, const std::vector<PosePcd> &keyframes, bool &if_converged, double &score);
+    Eigen::Matrix4d icpKeyToSubkeys(const int &closest_idx, const std::vector<PosePcd> &keyframes, bool &if_converged, double &score);
+    Eigen::Matrix4d coarseToFineKeyToKey(const int &closest_idx, const std::vector<PosePcd> &keyframes, bool &if_converged, double &score);
     visualization_msgs::Marker getLoopMarkers(const gtsam::Values &corrected_esti_in);
     //cb
     void odomPcdCallback(const nav_msgs::OdometryConstPtr &odom_msg, const sensor_msgs::PointCloud2ConstPtr &pcd_msg);

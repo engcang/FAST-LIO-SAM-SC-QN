@@ -7,16 +7,13 @@ keyframe:
   keyframe_threshold: 1.5                     # unit [meter] every this distance, generate keyframe
   subkeyframes_number: 5                      # how many subkeyframes are merged to ICP with current keyframe (closest-this ~ closest+this, if exists)
 
-loop:
-  loop_detection_radius: 35.0                 # unit [meter] within this radius, check if loop or not
-  loop_detection_timediff_threshold: 30.0     # unit [sec] check if two keyframes are loop if times are farther than this
-
 quatro_nano_gicp_voxel_resolution: 0.3        # voxel resolution to use Quatro and Nano-GICP matching
 
 nano_gicp:                                    # all values are from Nano-GICP official github (Direct LiDAR Odometry)
   thread_number: 0                            # if 0, max number of core
   icp_score_threshold: 1.5                    # lower is more accurate, for loop detection
   correspondences_number: 15
+  max_correspondence_distance: 35.0           # this is also used for candidate trimming after ScanContext
   max_iter: 32
   transformation_epsilon: 0.01
   euclidean_fitness_epsilon: 0.01

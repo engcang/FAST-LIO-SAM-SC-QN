@@ -51,6 +51,7 @@ catkin_package() #this automatically adds/installs the results of build
 ### get packages' headers
 include_directories(
   include
+  ${CMAKE_SOURCE_DIR}/../third_party/scancontext_tro
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
@@ -69,6 +70,8 @@ add_library(${PROJECT_NAME}_methods src/methods.cpp)
 target_link_libraries(${PROJECT_NAME}_methods ${COMMON_LIBS})
 add_library(${PROJECT_NAME}_callbacks src/callbacks.cpp)
 target_link_libraries(${PROJECT_NAME}_callbacks ${COMMON_LIBS})
+add_library(${PROJECT_NAME}_scancontext ${CMAKE_SOURCE_DIR}/../third_party/scancontext_tro/Scancontext.cpp)
+target_link_libraries(${PROJECT_NAME}_scancontext ${PCL_LIBRARIES} ${EIGEN3_LIBS})
 
 add_executable(${PROJECT_NAME}_node src/main.cpp)
-target_link_libraries(${PROJECT_NAME}_node ${COMMON_LIBS} ${PROJECT_NAME}_constructor ${PROJECT_NAME}_callbacks ${PROJECT_NAME}_methods)
+target_link_libraries(${PROJECT_NAME}_node ${COMMON_LIBS} ${PROJECT_NAME}_constructor ${PROJECT_NAME}_callbacks ${PROJECT_NAME}_methods ${PROJECT_NAME}_scancontext)
