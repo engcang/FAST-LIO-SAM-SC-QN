@@ -13,6 +13,7 @@
 + Note2: main code (PGO) is modularized and hence can be combined with any other LIO / LO
     + This repo is to learn GTSAM myself!
     + and as GTSAM tutorial for beginners - [GTSAM 튜토리얼 한글 포스팅](https://engcang.github.io/2023/07/15/gtsam_tutorial.html)
+## Video clip - https://youtu.be/MQ8XxRY472Y
 
 <br>
 
