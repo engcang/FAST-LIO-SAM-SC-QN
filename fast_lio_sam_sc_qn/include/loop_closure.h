@@ -87,7 +87,7 @@ private:
 public:
     explicit LoopClosure(const LoopClosureConfig &config);
     ~LoopClosure();
-    void updateScancontext(const pcl::PointCloud<PointType> &cloud);
+    void updateScancontext(pcl::PointCloud<PointType> cloud);
     int fetchCandidateKeyframeIdx(const PosePcd &query_keyframe,
                                   const std::vector<PosePcd> &keyframes);
     PcdPair setSrcAndDstCloud(const std::vector<PosePcd> &keyframes,

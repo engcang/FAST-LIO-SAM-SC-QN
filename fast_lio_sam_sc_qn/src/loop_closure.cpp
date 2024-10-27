@@ -31,7 +31,7 @@ LoopClosure::LoopClosure(const LoopClosureConfig &config)
 
 LoopClosure::~LoopClosure() {}
 
-void LoopClosure::updateScancontext(const pcl::PointCloud<PointType> &cloud)
+void LoopClosure::updateScancontext(pcl::PointCloud<PointType> cloud)
 {
     sc_manager_.makeAndSaveScancontextAndKeys(cloud);
 }
@@ -46,7 +46,7 @@ int LoopClosure::fetchCandidateKeyframeIdx(const PosePcd &query_keyframe,
     if (candidate_keyframe_idx >= 0) // if exists
     {
         // if close enough
-        if ((keyframes[candidate_keyframe_idx].pose_corrected_eig.block<3, 1>(0, 3) - query_keyframe.pose_corrected_eig.block<3, 1>(0, 3))
+        if ((keyframes[candidate_keyframe_idx].pose_corrected_eig_.block<3, 1>(0, 3) - query_keyframe.pose_corrected_eig_.block<3, 1>(0, 3))
                 .norm() < config_.scancontext_max_correspondence_distance_)
         {
             return candidate_keyframe_idx;

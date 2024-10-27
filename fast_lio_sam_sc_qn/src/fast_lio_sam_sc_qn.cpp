@@ -58,7 +58,7 @@ FastLioSamScQn::FastLioSamScQn(const ros::NodeHandle &n_private):
     /* ROS things */
     odom_path_.header.frame_id = map_frame_;
     corrected_path_.header.frame_id = map_frame_;
-    package_path_ = ros::package::getPath("fast_lio_sam_qn");
+    package_path_ = ros::package::getPath("fast_lio_sam_sc_qn");
     /* publishers */
     odom_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/ori_odom", 10, true);
     path_pub_ = nh_.advertise<nav_msgs::Path>("/ori_path", 10, true);
