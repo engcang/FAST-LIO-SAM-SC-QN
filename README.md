@@ -48,9 +48,7 @@
     sudo apt install libtbb-dev
     ```
 
-<br>
-
-## How to build and use
+## How to build
 + Get the code and then build the main code.
     ```shell
     cd ~/your_workspace/src
@@ -59,29 +57,48 @@
     cd ~/your_workspace
     # nano_gicp, quatro first
     catkin build nano_gicp -DCMAKE_BUILD_TYPE=Release
-    
     # Note the option!
-    catkin build quatro -DCMAKE_BUILD_TYPE=Release -DQUATRO_TBB=ON
-    
+    catkin build quatro -DCMAKE_BUILD_TYPE=Release -DQUATRO_TBB=ON -DQUATRO_DEBUG=OFF
     catkin build -DCMAKE_BUILD_TYPE=Release
     . devel/setup.bash
     ```
+
+## How to run
 + Then run (change config files in third_party/`FAST_LIO`)
     ```shell
     roslaunch fast_lio_sam_sc_qn run.launch lidar:=ouster
     roslaunch fast_lio_sam_sc_qn run.launch lidar:=velodyne
     roslaunch fast_lio_sam_sc_qn run.launch lidar:=livox
     ```
+* In particular, we provide a preset launch option for specific datasets:
+    ```shell
+    roslaunch fast_lio_sam_sc_qn run.launch lidar:=kitti
+    roslaunch fast_lio_sam_sc_qn run.launch lidar:=mulran
+    roslaunch fast_lio_sam_sc_qn run.launch lidar:=newer-college20
+    ```
 
 <br>
 
 ## Structure
-+ odom_pcd_cb
++ odomPcdCallback
     + pub realtime pose in corrected frame
     + keyframe detection -> if keyframe, add to pose graph + save to keyframe queue + generate ScanContext
     + pose graph optimization with iSAM2
-+ loop_timer_func
++ loopTimerFunc
     + process a saved keyframe
         + detect loop -> if loop, add to pose graph
-+ vis_timer_func
++ visTimerFunc
     + visualize all **(Note: global map is only visualized once uncheck/check the mapped_pcd in rviz to save comp.)**
+
+<br>
+
+## Memo
++ `Quatro` module fixed for empty matches
++ `Quatro` module is updated with `optimizedMatching` which limits the number of correspondences and increased the speed
+
+<br>
+
+## License
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png" /></a>
+
+This work is licensed under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-nc-sa/4.0/)
