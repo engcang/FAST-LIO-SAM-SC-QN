@@ -40,8 +40,8 @@ int LoopClosure::fetchCandidateKeyframeIdx(const PosePcd &query_keyframe,
                                            const std::vector<PosePcd> &keyframes)
 {
     // from ScanContext, get the loop candidate
-    std::pair<int, float> sc_detected_ = sc_manager_.detectLoopClosureID(); // int: nearest node index,
-                                                                            // float: relative yaw
+    std::pair<int, float> sc_detected_ = sc_manager_.detectLoopClosureIDGivenScan(query_keyframe.pcd_); // int: nearest node index,
+                                                                                                        // float: relative yaw
     int candidate_keyframe_idx = sc_detected_.first;
     if (candidate_keyframe_idx >= 0) // if exists
     {
